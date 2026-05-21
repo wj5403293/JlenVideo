@@ -101,6 +101,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
@@ -2339,6 +2340,19 @@ internal fun LegacyAccountRecordPane(
     onDeleteItem: (String) -> Unit,
     onClearAll: () -> Unit
 ) {
+    var showClearAllConfirm by rememberSaveable { mutableStateOf(false) }
+
+    if (showClearAllConfirm) {
+        ClearHistoryConfirmDialog(
+            count = items.size,
+            onDismiss = { showClearAllConfirm = false },
+            onConfirm = {
+                showClearAllConfirm = false
+                onClearAll()
+            }
+        )
+    }
+
     when {
         isLoading && items.isEmpty() -> LoadingPane("$title 加载中...", style = FeedbackPaneStyle.Card)
         items.isEmpty() -> EmptyPane(
@@ -2381,7 +2395,10 @@ internal fun LegacyAccountRecordPane(
                             color = UiPalette.TextSecondary
                         )
                     }
-                    TextButton(onClick = onClearAll, enabled = !isActionLoading) {
+                    TextButton(
+                        onClick = { showClearAllConfirm = true },
+                        enabled = !isActionLoading
+                    ) {
                         Text(if (isActionLoading) "处理中..." else "清空")
                     }
                 }
@@ -2401,6 +2418,91 @@ internal fun LegacyAccountRecordPane(
                 isLoading = isLoading && items.isNotEmpty(),
                 onLoadMore = onLoadMore
             )
+        }
+    }
+}
+
+@Composable
+private fun ClearHistoryConfirmDialog(
+    count: Int,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = UiPalette.Surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(UiPalette.DangerSurface.copy(alpha = 0.68f), RoundedCornerShape(999.dp))
+                        .border(1.dp, UiPalette.DangerBorder.copy(alpha = 0.5f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = "播放记录",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = UiPalette.DangerText
+                    )
+                }
+                Text(
+                    text = "清空播放记录",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = UiPalette.Ink
+                )
+                Text(
+                    text = "确认清空当前账号的全部播放记录吗？",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = UiPalette.TextSecondary
+                )
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = UiPalette.SurfaceSoft.copy(alpha = 0.76f)),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(
+                        text = "将删除已加载的 $count 条记录，并同步执行清空操作。该操作完成后无法从本页恢复。",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = UiPalette.TextPrimary
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.width(110.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = UiPalette.SurfaceSoft.copy(alpha = 0.36f),
+                            contentColor = UiPalette.TextPrimary
+                        )
+                    ) {
+                        Text("取消", fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.width(122.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = UiPalette.DangerText,
+                            contentColor = UiPalette.Surface
+                        )
+                    ) {
+                        Text("确认清空", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
