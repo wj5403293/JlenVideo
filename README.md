@@ -30,8 +30,8 @@ JlenVideo 是一个基于 **Kotlin + Jetpack Compose + Media3** 开发的苹果 
 | --- | --- |
 | 项目名 | `JlenVideo` |
 | Application Id | `top.jlen.vod` |
-| 当前版本 | `2.1.1.4` |
-| 当前 versionCode | `30` |
+| 当前版本 | `2.1.1.5` |
+| 当前 versionCode | `31` |
 | minSdk | `24` |
 | targetSdk | `34` |
 | compileSdk | `34` |
@@ -120,7 +120,7 @@ feature/player/.../NativeVideoPlayer.kt
 
 ### APK 输出
 
-- [JlenVideo-2.1.1.4-debug.apk](/F:/codex/1/app/build/outputs/apk/debug/JlenVideo-2.1.1.4-debug.apk)
+- [JlenVideo-2.1.1.5-debug.apk](/F:/codex/1/app/build/outputs/apk/debug/JlenVideo-2.1.1.5-debug.apk)
 
 ---
 
@@ -366,7 +366,7 @@ runtime 内部的核心正文。
 ## 11. 当前工程约定
 
 - 默认站点配置在 [gradle.properties](/F:/codex/1/gradle.properties)
-- 当前版本为 `2.1.1.4 (30)`
+- 当前版本为 `2.1.1.5 (31)`
 - APK 命名规则固定为：
 
 ```text
@@ -383,7 +383,7 @@ JlenVideo-版本号-debug.apk
 
 ---
 
-## 12. 2.1.1.4 更新说明
+## 12. 2.1.1.5 更新说明
 
 - 新增首次启动用户协议与首登引导：首次打开先确认协议，再进入登录引导；登录可跳过，协议不可跳过
 - 首登页支持在当前页完成登录、注册和找回密码，避免跳转到“我的”页打断流程
