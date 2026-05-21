@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import android.util.Base64
 import androidx.core.text.HtmlCompat
@@ -1112,6 +1113,8 @@ open class LegacyAppleCmsRuntimeRepositoryCore(
                     .add("device_id", ensureHeartbeatDeviceIdOriginal())
                     .add("platform", "android")
                     .add("app_version", AppRuntimeInfo.versionName)
+                    .add("android_release", Build.VERSION.RELEASE.orEmpty())
+                    .add("android_sdk", Build.VERSION.SDK_INT.toString())
                     .add("route", route.trim().ifBlank { "home" })
                     .apply {
                         userId.trim()

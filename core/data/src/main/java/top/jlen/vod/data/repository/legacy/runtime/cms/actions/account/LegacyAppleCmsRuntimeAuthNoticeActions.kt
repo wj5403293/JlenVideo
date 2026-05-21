@@ -1,6 +1,7 @@
 package top.jlen.vod.data
 
 import android.net.Uri
+import android.os.Build
 import com.google.gson.JsonParser
 import java.io.IOException
 import java.util.UUID
@@ -28,6 +29,8 @@ internal fun LegacyAppleCmsRuntimeRepositoryCore.legacyReportHeartbeat(
                 .add("device_id", legacyEnsureHeartbeatDeviceId())
                 .add("platform", "android")
                 .add("app_version", AppRuntimeInfo.versionName)
+                .add("android_release", Build.VERSION.RELEASE.orEmpty())
+                .add("android_sdk", Build.VERSION.SDK_INT.toString())
                 .add("route", route.trim().ifBlank { "home" })
                 .apply {
                     userId.trim()
