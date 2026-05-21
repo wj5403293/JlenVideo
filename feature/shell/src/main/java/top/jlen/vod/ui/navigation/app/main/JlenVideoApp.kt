@@ -323,7 +323,8 @@ fun JlenVideoApp() {
                     ) {
                         composable(ROUTE_ONBOARDING_AGREEMENT) {
                             UserAgreementOnboardingScreen(
-                                onAccept = acceptAgreement
+                                onAccept = acceptAgreement,
+                                onExit = { activity?.finish() }
                             )
                         }
                         composable(ROUTE_ONBOARDING_LOGIN) {
@@ -626,8 +627,44 @@ private fun normalizeHeartbeatRoute(route: String?): String = when {
 
 @Composable
 private fun UserAgreementOnboardingScreen(
-    onAccept: () -> Unit
+    onAccept: () -> Unit,
+    onExit: () -> Unit
 ) {
+    var showExitConfirm by rememberSaveable { mutableStateOf(false) }
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = {
+                Text(
+                    text = "退出应用？",
+                    fontWeight = FontWeight.ExtraBold
+                )
+            },
+            text = {
+                Text("不同意用户协议与隐私说明将无法继续使用 JlenVideo。")
+            },
+            confirmButton = {
+                Button(
+                    onClick = onExit,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = UiPalette.Accent,
+                        contentColor = UiPalette.AccentText
+                    )
+                ) {
+                    Text("确定退出", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirm = false }) {
+                    Text("返回阅读")
+                }
+            },
+            containerColor = UiPalette.Surface,
+            titleContentColor = UiPalette.Ink,
+            textContentColor = UiPalette.TextSecondary
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -698,6 +735,16 @@ private fun UserAgreementOnboardingScreen(
             )
         ) {
             Text("同意并继续", fontWeight = FontWeight.ExtraBold)
+        }
+        TextButton(
+            onClick = { showExitConfirm = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "不同意",
+                fontWeight = FontWeight.Bold,
+                color = UiPalette.TextSecondary
+            )
         }
     }
 }
