@@ -366,7 +366,7 @@ runtime 内部的核心正文。
 ## 11. 当前工程约定
 
 - 默认站点配置在 [gradle.properties](/F:/codex/1/gradle.properties)
-- 当前版本为 `2.1.1.3 (29)`
+- 当前版本为 `2.1.1.4 (30)`
 - APK 命名规则固定为：
 
 ```text
