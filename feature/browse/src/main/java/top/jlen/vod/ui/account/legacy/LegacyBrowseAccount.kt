@@ -599,6 +599,20 @@ internal fun LegacyAccountScreen(
                                         .padding(horizontal = 20.dp, vertical = 22.dp),
                                     verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(18.dp))
+                                            .background(UiPalette.SurfaceSoft)
+                                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                                    ) {
+                                        Text(
+                                            text = "登录后可同步追剧、播放记录和会员积分",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = UiPalette.TextPrimary
+                                        )
+                                    }
                                     OutlinedTextField(
                                         value = state.userName,
                                         onValueChange = onUserNameChange,
@@ -1340,6 +1354,16 @@ private fun AccountOverviewPane(
     onOpenFollow: () -> Unit,
     onOpenLogs: () -> Unit
 ) {
+    val membershipStatus = remember(
+        state.session.groupName,
+        state.membershipInfo.expiry,
+        state.membershipInfo.points,
+        state.membershipSignInInfo.signedToday
+    ) {
+        buildMembershipStatusText(state)
+    }
+    val email = state.profileEditor.email.trim()
+    val hasEmail = email.isNotBlank()
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Card(
             colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
@@ -1365,7 +1389,7 @@ private fun AccountOverviewPane(
                             color = UiPalette.Ink
                         )
                         Text(
-                            text = state.session.groupName.ifBlank { "普通用户" },
+                            text = membershipStatus,
                             style = MaterialTheme.typography.bodyMedium,
                             color = UiPalette.TextSecondary
                         )
@@ -1439,8 +1463,8 @@ private fun AccountOverviewPane(
                         modifier = Modifier.weight(1f)
                     )
                     AccountOverviewActionButton(
-                        title = "邮箱绑定",
-                        subtitle = state.profileEditor.email.ifBlank { "安全邮箱" },
+                        title = if (hasEmail) "管理邮箱" else "绑定邮箱",
+                        subtitle = email.takeIf { hasEmail }?.maskEmailForAccount() ?: "保护账号安全",
                         icon = Icons.Rounded.CheckCircle,
                         onClick = onBindEmail,
                         modifier = Modifier.weight(1f)
@@ -1653,6 +1677,27 @@ private fun signInRewardHint(signInInfo: MembershipSignInInfo): String = when {
         "${signInInfo.rewardMinPoints}-${signInInfo.rewardMaxPoints} 积分"
     signInInfo.rewardMinPoints.isNotBlank() -> "${signInInfo.rewardMinPoints} 积分起"
     else -> "领取积分"
+}
+
+private fun buildMembershipStatusText(state: AccountUiState): String {
+    val groupName = state.session.groupName.ifBlank { state.membershipInfo.groupName }.ifBlank { "普通用户" }
+    val expiry = state.membershipInfo.expiry.trim()
+    val points = state.membershipInfo.points.trim()
+    return when {
+        expiry.isNotBlank() && expiry != "--" -> "$groupName 有效至 $expiry"
+        points.isNotBlank() && !state.membershipSignInInfo.signedToday -> "$groupName，签到可领取积分"
+        points.isNotBlank() -> "$groupName，剩余 $points 积分"
+        else -> groupName
+    }
+}
+
+private fun String.maskEmailForAccount(): String {
+    val atIndex = indexOf('@')
+    if (atIndex <= 0 || atIndex == lastIndex) return this
+    val name = take(atIndex)
+    val domain = drop(atIndex)
+    val visiblePrefix = name.take(2)
+    return "$visiblePrefix***$domain"
 }
 
 private enum class AccountProfileTab {
