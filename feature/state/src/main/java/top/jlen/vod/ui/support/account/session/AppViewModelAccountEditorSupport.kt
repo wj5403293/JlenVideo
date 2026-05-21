@@ -9,17 +9,17 @@ import top.jlen.vod.data.UserProfileEditor
 internal fun accountStateWithValidationError(
     accountState: AccountUiState,
     message: String
-): AccountUiState = accountState.copy(error = message)
+): AccountUiState = accountState.copy(error = message, message = null)
 
 internal fun accountStateWithUserName(
     accountState: AccountUiState,
     value: String
-): AccountUiState = accountState.copy(userName = value)
+): AccountUiState = accountState.copy(userName = value, error = null, message = null)
 
 internal fun accountStateWithPassword(
     accountState: AccountUiState,
     value: String
-): AccountUiState = accountState.copy(password = value)
+): AccountUiState = accountState.copy(password = value, error = null, message = null)
 
 internal fun accountStateWithAuthMode(
     accountState: AccountUiState,
@@ -141,6 +141,8 @@ internal fun accountStateAfterRegisterSuccess(
     authMode = AccountAuthMode.Login,
     userName = userName,
     password = "",
+    error = null,
+    message = "注册成功，请登录。",
     registerEditor = RegisterEditor(channel = accountState.registerChannel)
 )
 
@@ -151,5 +153,7 @@ internal fun accountStateAfterFindPasswordSuccess(
     authMode = AccountAuthMode.Login,
     userName = userName,
     password = "",
+    error = null,
+    message = "密码已重置，请登录。",
     findPasswordEditor = FindPasswordEditor()
 )

@@ -661,124 +661,121 @@ internal fun LegacyAboutPane(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "关于",
+                    text = "工具中心",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = UiPalette.Ink
                 )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(UiPalette.SurfaceSoft)
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "版本信息",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = UiPalette.TextSecondary
-                        )
-                        Text(
-                            text = buildString {
-                                append("当前版本：")
-                                append(currentVersion)
-                                if (latestVersion.isNotBlank()) {
-                                    append("\n最新版本：")
-                                    append(latestVersion)
-                                }
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = UiPalette.Ink
-                        )
-                        Text(
-                            text = when {
-                                isUpdateLoading -> "正在检查更新"
-                                hasUpdate -> "发现新版本，可直接前往下载"
-                                latestVersion.isNotBlank() -> "当前已经是最新版本"
-                                else -> "可手动检查 GitHub Releases"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = UiPalette.TextSecondary
-                        )
+                AccountToolSection(
+                    title = "版本更新",
+                    description = when {
+                        isUpdateLoading -> "正在检查更新"
+                        hasUpdate -> "发现新版本"
+                        latestVersion.isNotBlank() -> "当前已是最新版本"
+                        else -> "可手动检查发布页"
                     }
-                }
-                if (notes.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(UiPalette.SurfaceSoft)
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = buildString {
+                            append("当前版本：")
+                            append(currentVersion)
+                            if (latestVersion.isNotBlank()) {
+                                append("\n最新版本：")
+                                append(latestVersion)
+                            }
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = UiPalette.Ink
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "更新说明",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = UiPalette.TextSecondary
+                        OutlinedButton(
+                            onClick = onCheckUpdate,
+                            enabled = !isUpdateLoading,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            border = BorderStroke(1.dp, UiPalette.BorderSoft),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(if (isUpdateLoading) "检查中..." else "检查更新")
+                        }
+                        Button(
+                            onClick = if (hasUpdate) onDownloadUpdate else onOpenRelease,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = UiPalette.Accent,
+                                contentColor = UiPalette.AccentText
                             )
-                            Text(
-                                text = notes,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = UiPalette.Ink,
-                                maxLines = 8,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        ) {
+                            Text(if (hasUpdate) "前往下载" else "查看发布")
                         }
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onCheckUpdate,
-                        enabled = !isUpdateLoading,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
-                        border = BorderStroke(1.dp, UiPalette.BorderSoft),
-                        shape = RoundedCornerShape(16.dp)
+                if (notes.isNotBlank()) {
+                    AccountToolSection(
+                        title = "更新说明",
+                        description = "最近版本变更"
                     ) {
-                        Text(if (isUpdateLoading) "检查中..." else "检查更新")
-                    }
-                    Button(
-                        onClick = if (hasUpdate) onDownloadUpdate else onOpenRelease,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = UiPalette.Accent,
-                            contentColor = UiPalette.AccentText
+                        Text(
+                            text = notes,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = UiPalette.Ink,
+                            maxLines = 8,
+                            overflow = TextOverflow.Ellipsis
                         )
-                    ) {
-                        Text(if (hasUpdate) "前往下载" else "查看发布")
                     }
                 }
-            }
-        }
-        if (hasCrashLog) {
-            CrashLogCard(
-                logText = crashLogText,
-                onRefresh = onRefreshCrashLog,
-                onClear = onClearCrashLog
-            )
-        } else {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, UiPalette.Border)
-            ) {
-                Text(
-                    text = "暂无崩溃日志",
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = UiPalette.TextSecondary
-                )
+                AccountToolSection(
+                    title = "用户协议与隐私说明",
+                    description = "首次启动确认内容"
+                ) {
+                    Text(
+                        text = "应用用于浏览和播放站点提供的影视信息。登录后会使用站点账号能力同步资料、会员积分、追剧和播放记录；本地会保存必要的引导状态、搜索历史、播放进度和问题日志。请在合法合规的前提下使用。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = UiPalette.TextPrimary
+                    )
+                }
+                AccountToolSection(
+                    title = "崩溃日志",
+                    description = if (hasCrashLog) "已有本机日志" else "暂无本机日志"
+                ) {
+                    if (hasCrashLog) {
+                        CrashLogCard(
+                            logText = crashLogText,
+                            onRefresh = onRefreshCrashLog,
+                            onClear = onClearCrashLog
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "当前没有崩溃日志。",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = UiPalette.TextSecondary
+                            )
+                            OutlinedButton(
+                                onClick = onRefreshCrashLog,
+                                border = BorderStroke(1.dp, UiPalette.BorderSoft),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Text("刷新")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -854,6 +851,38 @@ internal fun LegacyCrashLogCard(
                     Text("清空日志")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AccountToolSection(
+    title: String,
+    description: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(UiPalette.SurfaceSoft)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = UiPalette.Ink
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = UiPalette.TextSecondary
+                )
+            }
+            content()
         }
     }
 }
