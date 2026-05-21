@@ -3,13 +3,16 @@ package top.jlen.vod.ui
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +32,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.FileDownload
@@ -68,9 +72,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -87,6 +95,8 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 import top.jlen.vod.data.AppNotice
 import top.jlen.vod.data.AppUpdateInfo
+import top.jlen.vod.data.FindPasswordEditor
+import top.jlen.vod.data.RegisterEditor
 
 private const val ONBOARDING_PREFS = "jlen_video_onboarding"
 private const val KEY_ACCEPTED_USER_AGREEMENT = "accepted_user_agreement"
@@ -338,14 +348,14 @@ fun JlenVideoApp() {
                                 onPasswordChange = viewModel::updateLoginPassword,
                                 onLogin = viewModel::login,
                                 onSkip = { completeFirstLoginPrompt("home") },
-                                onRegister = {
-                                    viewModel.setAccountAuthMode(AccountAuthMode.Register)
-                                    completeFirstLoginPrompt("account")
-                                },
-                                onFindPassword = {
-                                    viewModel.setAccountAuthMode(AccountAuthMode.FindPassword)
-                                    completeFirstLoginPrompt("account")
-                                }
+                                onAuthModeChange = viewModel::setAccountAuthMode,
+                                onRegisterEditorChange = viewModel::updateRegisterEditor,
+                                onRefreshRegisterCaptcha = viewModel::refreshRegisterCaptcha,
+                                onSendRegisterCode = viewModel::sendRegisterCode,
+                                onRegister = viewModel::register,
+                                onFindPasswordEditorChange = viewModel::updateFindPasswordEditor,
+                                onRefreshFindPasswordCaptcha = viewModel::refreshFindPasswordCaptcha,
+                                onFindPassword = viewModel::findPassword
                             )
                         }
                         composable("home") {
@@ -834,9 +844,26 @@ private fun FirstLoginOnboardingScreen(
     onPasswordChange: (String) -> Unit,
     onLogin: () -> Unit,
     onSkip: () -> Unit,
+    onAuthModeChange: (AccountAuthMode) -> Unit,
+    onRegisterEditorChange: ((RegisterEditor) -> RegisterEditor) -> Unit,
+    onRefreshRegisterCaptcha: () -> Unit,
+    onSendRegisterCode: () -> Unit,
     onRegister: () -> Unit,
+    onFindPasswordEditorChange: ((FindPasswordEditor) -> FindPasswordEditor) -> Unit,
+    onRefreshFindPasswordCaptcha: () -> Unit,
     onFindPassword: () -> Unit
 ) {
+    val title = when (state.authMode) {
+        AccountAuthMode.Register -> "注册账号"
+        AccountAuthMode.FindPassword -> "找回密码"
+        else -> "登录账号"
+    }
+    val subtitle = when (state.authMode) {
+        AccountAuthMode.Register -> "创建账号后，可继续在这里登录并完成首次引导。"
+        AccountAuthMode.FindPassword -> "重置密码后，可返回登录并继续进入应用。"
+        else -> "登录后可同步追剧、播放记录和会员积分，也可以先跳过进入首页。"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -845,13 +872,13 @@ private fun FirstLoginOnboardingScreen(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "登录账号",
+                text = title,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = UiPalette.Ink
             )
             Text(
-                text = "登录后可同步追剧、播放记录和会员积分，也可以先跳过进入首页。",
+                text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = UiPalette.TextSecondary
             )
@@ -886,78 +913,60 @@ private fun FirstLoginOnboardingScreen(
                     }
                 }
 
-                OutlinedTextField(
-                    value = state.userName,
-                    onValueChange = onUserNameChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    singleLine = true,
-                    label = { Text("用户名") },
-                    placeholder = { Text("请输入站内用户名") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = UiPalette.Accent,
-                        unfocusedBorderColor = UiPalette.BorderSoft,
-                        focusedTextColor = UiPalette.Ink,
-                        unfocusedTextColor = UiPalette.Ink,
-                        cursorColor = UiPalette.Accent,
-                        focusedContainerColor = UiPalette.SurfaceSoft,
-                        unfocusedContainerColor = UiPalette.SurfaceSoft
+                when (state.authMode) {
+                    AccountAuthMode.Register -> FirstLoginRegisterPane(
+                        state = state,
+                        onEditorChange = onRegisterEditorChange,
+                        onRefreshCaptcha = onRefreshRegisterCaptcha,
+                        onSendCode = onSendRegisterCode,
+                        onSubmit = onRegister
                     )
-                )
-                OutlinedTextField(
-                    value = state.password,
-                    onValueChange = onPasswordChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    singleLine = true,
-                    label = { Text("密码") },
-                    placeholder = { Text("请输入密码") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = UiPalette.Accent,
-                        unfocusedBorderColor = UiPalette.BorderSoft,
-                        focusedTextColor = UiPalette.Ink,
-                        unfocusedTextColor = UiPalette.Ink,
-                        cursorColor = UiPalette.Accent,
-                        focusedContainerColor = UiPalette.SurfaceSoft,
-                        unfocusedContainerColor = UiPalette.SurfaceSoft
-                    )
-                )
 
-                Button(
-                    onClick = onLogin,
-                    enabled = !state.isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = UiPalette.Accent,
-                        contentColor = UiPalette.AccentText
+                    AccountAuthMode.FindPassword -> FirstLoginFindPasswordPane(
+                        state = state,
+                        onEditorChange = onFindPasswordEditorChange,
+                        onRefreshCaptcha = onRefreshFindPasswordCaptcha,
+                        onSubmit = onFindPassword
                     )
-                ) {
-                    Text(if (state.isLoading) "正在登录..." else "立即登录", fontWeight = FontWeight.ExtraBold)
+
+                    else -> FirstLoginLoginPane(
+                        state = state,
+                        onUserNameChange = onUserNameChange,
+                        onPasswordChange = onPasswordChange,
+                        onLogin = onLogin
+                    )
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onRegister,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
-                    ) {
-                        Text("注册账号", maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = onFindPassword,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
-                    ) {
-                        Text("找回密码", maxLines = 1)
+                    if (state.authMode == AccountAuthMode.Login) {
+                        OutlinedButton(
+                            onClick = { onAuthModeChange(AccountAuthMode.Register) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+                        ) {
+                            Text("注册账号", maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = { onAuthModeChange(AccountAuthMode.FindPassword) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+                        ) {
+                            Text("找回密码", maxLines = 1)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { onAuthModeChange(AccountAuthMode.Login) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+                        ) {
+                            Text("返回登录", maxLines = 1)
+                        }
                     }
                 }
             }
@@ -974,6 +983,282 @@ private fun FirstLoginOnboardingScreen(
                 fontWeight = FontWeight.Bold,
                 color = UiPalette.TextSecondary
             )
+        }
+    }
+}
+
+@Composable
+private fun FirstLoginLoginPane(
+    state: AccountUiState,
+    onUserNameChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onLogin: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        OnboardingTextField(
+            value = state.userName,
+            onValueChange = onUserNameChange,
+            label = "用户名",
+            placeholder = "请输入站内用户名"
+        )
+        OnboardingTextField(
+            value = state.password,
+            onValueChange = onPasswordChange,
+            label = "密码",
+            placeholder = "请输入密码",
+            isPassword = true
+        )
+
+        Button(
+            onClick = onLogin,
+            enabled = !state.isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = UiPalette.Accent,
+                contentColor = UiPalette.AccentText
+            )
+        ) {
+            Text(if (state.isLoading) "正在登录..." else "立即登录", fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+@Composable
+private fun FirstLoginRegisterPane(
+    state: AccountUiState,
+    onEditorChange: ((RegisterEditor) -> RegisterEditor) -> Unit,
+    onRefreshCaptcha: () -> Unit,
+    onSendCode: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        OnboardingTextField(
+            value = state.registerEditor.userName,
+            onValueChange = { value -> onEditorChange { it.copy(userName = value) } },
+            label = "用户名",
+            placeholder = "请输入注册用户名"
+        )
+        OnboardingTextField(
+            value = state.registerEditor.password,
+            onValueChange = { value -> onEditorChange { it.copy(password = value) } },
+            label = "密码",
+            placeholder = "请输入注册密码",
+            isPassword = true
+        )
+        OnboardingTextField(
+            value = state.registerEditor.confirmPassword,
+            onValueChange = { value -> onEditorChange { it.copy(confirmPassword = value) } },
+            label = "确认密码",
+            placeholder = "请再次输入密码",
+            isPassword = true
+        )
+        OnboardingTextField(
+            value = state.registerEditor.contact,
+            onValueChange = { value -> onEditorChange { it.copy(contact = value) } },
+            label = state.registerContactLabel,
+            placeholder = "请输入${state.registerContactLabel}",
+            keyboardType = if (state.registerChannel == "phone") KeyboardType.Phone else KeyboardType.Email
+        )
+        if (state.registerRequiresCode) {
+            OnboardingTextField(
+                value = state.registerEditor.code,
+                onValueChange = { value -> onEditorChange { it.copy(code = value) } },
+                label = state.registerCodeLabel,
+                placeholder = "请输入${state.registerCodeLabel}"
+            )
+            OutlinedButton(
+                onClick = onSendCode,
+                enabled = !state.isActionLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+            ) {
+                Text(if (state.isActionLoading) "发送中..." else "发送${state.registerCodeLabel}")
+            }
+        }
+        if (state.registerRequiresVerify) {
+            OnboardingTextField(
+                value = state.registerEditor.verify,
+                onValueChange = { value -> onEditorChange { it.copy(verify = value) } },
+                label = "图片验证码",
+                placeholder = "请输入图片验证码"
+            )
+            OnboardingCaptchaBox(
+                bytes = state.registerCaptcha,
+                isLoading = state.isContentLoading,
+                onRefresh = onRefreshCaptcha
+            )
+        }
+
+        Button(
+            onClick = onSubmit,
+            enabled = !state.isActionLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = UiPalette.Accent,
+                contentColor = UiPalette.AccentText
+            )
+        ) {
+            Text(if (state.isActionLoading) "注册中..." else "立即注册", fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+@Composable
+private fun FirstLoginFindPasswordPane(
+    state: AccountUiState,
+    onEditorChange: ((FindPasswordEditor) -> FindPasswordEditor) -> Unit,
+    onRefreshCaptcha: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        OnboardingTextField(
+            value = state.findPasswordEditor.userName,
+            onValueChange = { value -> onEditorChange { it.copy(userName = value) } },
+            label = "用户名",
+            placeholder = "请输入登录账号"
+        )
+        OnboardingTextField(
+            value = state.findPasswordEditor.question,
+            onValueChange = { value -> onEditorChange { it.copy(question = value) } },
+            label = "密保问题",
+            placeholder = "请输入密保问题"
+        )
+        OnboardingTextField(
+            value = state.findPasswordEditor.answer,
+            onValueChange = { value -> onEditorChange { it.copy(answer = value) } },
+            label = "密保答案",
+            placeholder = "请输入密保答案"
+        )
+        OnboardingTextField(
+            value = state.findPasswordEditor.password,
+            onValueChange = { value -> onEditorChange { it.copy(password = value) } },
+            label = "新密码",
+            placeholder = "请输入新的登录密码",
+            isPassword = true
+        )
+        OnboardingTextField(
+            value = state.findPasswordEditor.confirmPassword,
+            onValueChange = { value -> onEditorChange { it.copy(confirmPassword = value) } },
+            label = "确认新密码",
+            placeholder = "请再次输入新密码",
+            isPassword = true
+        )
+        if (state.findPasswordRequiresVerify) {
+            OnboardingTextField(
+                value = state.findPasswordEditor.verify,
+                onValueChange = { value -> onEditorChange { it.copy(verify = value) } },
+                label = "验证码",
+                placeholder = "请输入图片验证码"
+            )
+            OnboardingCaptchaBox(
+                bytes = state.findPasswordCaptcha,
+                isLoading = state.isContentLoading,
+                onRefresh = onRefreshCaptcha
+            )
+        }
+
+        Button(
+            onClick = onSubmit,
+            enabled = !state.isActionLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = UiPalette.Accent,
+                contentColor = UiPalette.AccentText
+            )
+        ) {
+            Text(if (state.isActionLoading) "提交中..." else "立即找回", fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+@Composable
+private fun OnboardingTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    isPassword: Boolean = false,
+    keyboardType: KeyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        singleLine = true,
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = UiPalette.Accent,
+            unfocusedBorderColor = UiPalette.BorderSoft,
+            focusedTextColor = UiPalette.Ink,
+            unfocusedTextColor = UiPalette.Ink,
+            cursorColor = UiPalette.Accent,
+            focusedContainerColor = UiPalette.SurfaceSoft,
+            unfocusedContainerColor = UiPalette.SurfaceSoft
+        )
+    )
+}
+
+@Composable
+private fun OnboardingCaptchaBox(
+    bytes: ByteArray?,
+    isLoading: Boolean,
+    onRefresh: () -> Unit
+) {
+    val captchaBitmap = remember(bytes) {
+        runCatching {
+            bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+        }.getOrNull()
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(UiPalette.SurfaceSoft)
+                .clickable(onClick = onRefresh),
+            contentAlignment = Alignment.Center
+        ) {
+            if (captchaBitmap != null) {
+                Image(
+                    bitmap = captchaBitmap,
+                    contentDescription = "图片验证码",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Text(
+                    text = if (isLoading) "加载中..." else "点击刷新验证码",
+                    color = UiPalette.TextSecondary
+                )
+            }
+        }
+        OutlinedButton(
+            onClick = onRefresh,
+            enabled = !isLoading,
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+        ) {
+            Text("刷新")
         }
     }
 }
