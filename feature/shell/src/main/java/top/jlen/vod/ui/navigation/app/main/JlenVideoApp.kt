@@ -38,7 +38,6 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -632,37 +631,96 @@ private fun UserAgreementOnboardingScreen(
 ) {
     var showExitConfirm by rememberSaveable { mutableStateOf(false) }
     if (showExitConfirm) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showExitConfirm = false },
-            title = {
-                Text(
-                    text = "退出应用？",
-                    fontWeight = FontWeight.ExtraBold
-                )
-            },
-            text = {
-                Text("不同意用户协议与隐私说明将无法继续使用 JlenVideo。")
-            },
-            confirmButton = {
-                Button(
-                    onClick = onExit,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = UiPalette.Accent,
-                        contentColor = UiPalette.AccentText
-                    )
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.Border)
+            ) {
+                Column(
+                    modifier = Modifier.padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
-                    Text("确定退出", fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .background(UiPalette.DangerSurface, RoundedCornerShape(16.dp))
+                                .border(1.dp, UiPalette.DangerBorder, RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "!",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = UiPalette.DangerText
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "确定不同意并退出？",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = UiPalette.Ink
+                            )
+                            Text(
+                                text = "协议是首次使用前的必要确认",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = UiPalette.TextSecondary
+                            )
+                        }
+                    }
+
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = UiPalette.SurfaceSoft),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(
+                            text = "不同意用户协议与隐私说明将无法继续使用 JlenVideo。你可以返回继续阅读，或确定退出应用。",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = UiPalette.TextPrimary
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showExitConfirm = false },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = UiPalette.TextPrimary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+                        ) {
+                            Text("返回阅读", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = onExit,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = UiPalette.DangerText,
+                                contentColor = UiPalette.Surface
+                            )
+                        ) {
+                            Text("确定退出", fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExitConfirm = false }) {
-                    Text("返回阅读")
-                }
-            },
-            containerColor = UiPalette.Surface,
-            titleContentColor = UiPalette.Ink,
-            textContentColor = UiPalette.TextSecondary
-        )
+            }
+        }
     }
 
     Column(
