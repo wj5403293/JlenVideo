@@ -456,9 +456,7 @@ internal fun LegacyAccountScreen(
             }
         } else {
             item {
-                AccountGuestIntroCard(
-                    onLogin = { onAuthModeChange(AccountAuthMode.Login) }
-                )
+                AccountGuestIntroCard()
             }
 
             noticeMessage?.let { message ->
@@ -487,7 +485,7 @@ internal fun LegacyAccountScreen(
                             Column {
                                 AccountGuestModeHeader(
                                     title = "注册账号",
-                                    description = "创建账号后可同步追剧、播放记录和会员积分",
+                                    description = "填写账号信息并完成验证。",
                                     onBack = { onAuthModeChange(AccountAuthMode.Login) }
                                 )
                                 AccountRegisterPane(
@@ -510,7 +508,7 @@ internal fun LegacyAccountScreen(
                             Column {
                                 AccountGuestModeHeader(
                                     title = "找回密码",
-                                    description = "通过密保信息重置密码，完成后可返回登录",
+                                    description = "通过密保信息重置登录密码。",
                                     onBack = { onAuthModeChange(AccountAuthMode.Login) }
                                 )
                                 AccountFindPasswordPane(
@@ -572,20 +570,6 @@ internal fun LegacyAccountScreen(
                                     .padding(horizontal = 20.dp, vertical = 22.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(UiPalette.SurfaceSoft)
-                                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                                ) {
-                                    Text(
-                                        text = "登录后可同步追剧、播放记录和会员积分",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = UiPalette.TextPrimary
-                                    )
-                                }
                                 OutlinedTextField(
                                     value = state.userName,
                                     onValueChange = onUserNameChange,
@@ -1323,7 +1307,6 @@ private fun AccountUnderlineTab(
 
 @Composable
 private fun AccountGuestIntroCard(
-    onLogin: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
@@ -1355,13 +1338,13 @@ private fun AccountGuestIntroCard(
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "登录账号，解锁更多功能",
+                        text = "账号登录",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = UiPalette.Ink
                     )
                     Text(
-                        text = "同步追剧、播放记录、会员积分和资料信息，登录后体验会完整很多。",
+                        text = "登录后可同步追剧、播放记录、会员积分和个人资料。",
                         style = MaterialTheme.typography.bodyMedium,
                         color = UiPalette.TextSecondary
                     )
@@ -1372,20 +1355,6 @@ private fun AccountGuestIntroCard(
                 AccountGuestBenefitChip(text = "追剧同步")
                 AccountGuestBenefitChip(text = "播放记录")
                 AccountGuestBenefitChip(text = "会员积分")
-            }
-
-            Button(
-                onClick = onLogin,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = UiPalette.Accent,
-                    contentColor = UiPalette.AccentText
-                )
-            ) {
-                Text("立即登录", fontWeight = FontWeight.ExtraBold)
             }
         }
     }
