@@ -57,8 +57,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Whatshot
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -463,29 +461,6 @@ internal fun LegacyAccountScreen(
                 )
             }
 
-            item {
-                AccountSegmentBar {
-                    listOf(
-                        AccountAuthMode.Login,
-                        AccountAuthMode.Register,
-                        AccountAuthMode.FindPassword,
-                        AccountAuthMode.About
-                    ).forEach { mode ->
-                        AccountUnderlineTab(
-                            text = when (mode) {
-                                AccountAuthMode.Login -> "登录"
-                                AccountAuthMode.Register -> "注册"
-                                AccountAuthMode.FindPassword -> "找回密码"
-                                AccountAuthMode.About -> "关于"
-                            },
-                            selected = state.authMode == mode,
-                            onClick = { onAuthModeChange(mode) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
             noticeMessage?.let { message ->
                 item {
                     AccountStatusNotice(
@@ -509,13 +484,20 @@ internal fun LegacyAccountScreen(
                             shape = RoundedCornerShape(28.dp),
                             border = BorderStroke(1.dp, UiPalette.Border)
                         ) {
-                            AccountRegisterPane(
-                                state = state,
-                                onEditorChange = onRegisterEditorChange,
-                                onRefreshCaptcha = onRefreshRegisterCaptcha,
-                                onSendCode = onSendRegisterCode,
-                                onSubmit = onRegister
-                            )
+                            Column {
+                                AccountGuestModeHeader(
+                                    title = "注册账号",
+                                    description = "创建账号后可同步追剧、播放记录和会员积分",
+                                    onBack = { onAuthModeChange(AccountAuthMode.Login) }
+                                )
+                                AccountRegisterPane(
+                                    state = state,
+                                    onEditorChange = onRegisterEditorChange,
+                                    onRefreshCaptcha = onRefreshRegisterCaptcha,
+                                    onSendCode = onSendRegisterCode,
+                                    onSubmit = onRegister
+                                )
+                            }
                         }
                     }
 
@@ -525,43 +507,57 @@ internal fun LegacyAccountScreen(
                             shape = RoundedCornerShape(24.dp),
                             border = BorderStroke(1.dp, UiPalette.Border)
                         ) {
-                            AccountFindPasswordPane(
-                                state = state,
-                                onEditorChange = onFindPasswordEditorChange,
-                                onRefreshCaptcha = onRefreshFindPasswordCaptcha,
-                                onSubmit = onFindPassword
-                            )
+                            Column {
+                                AccountGuestModeHeader(
+                                    title = "找回密码",
+                                    description = "通过密保信息重置密码，完成后可返回登录",
+                                    onBack = { onAuthModeChange(AccountAuthMode.Login) }
+                                )
+                                AccountFindPasswordPane(
+                                    state = state,
+                                    onEditorChange = onFindPasswordEditorChange,
+                                    onRefreshCaptcha = onRefreshFindPasswordCaptcha,
+                                    onSubmit = onFindPassword
+                                )
+                            }
                         }
                     }
 
                     AccountAuthMode.About -> {
-                        AboutPane(
-                            currentVersion = state.updateInfo?.currentVersion?.ifBlank { AppRuntimeInfo.versionName }
-                                ?: AppRuntimeInfo.versionName,
-                            latestVersion = state.updateInfo?.latestVersion.orEmpty(),
-                            notes = state.updateInfo?.notes.orEmpty(),
-                            hasUpdate = state.updateInfo?.hasUpdate == true,
-                            isUpdateLoading = state.isUpdateLoading,
-                            crashLogText = state.latestCrashLog,
-                            hasCrashLog = state.hasCrashLog,
-                            onCheckUpdate = onCheckUpdate,
-                            onRefreshCrashLog = onRefreshCrashLog,
-                            onClearCrashLog = onClearCrashLog,
-                            onOpenRelease = {
-                                val targetUrl = state.updateInfo?.releasePageUrl
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?: "https://github.com/jinnian0703/JlenVideo/releases"
-                                openExternalUrl(context, targetUrl)
-                            },
-                            onDownloadUpdate = {
-                                val targetUrl = state.updateInfo?.downloadUrl
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?: state.updateInfo?.releasePageUrl
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?: "https://github.com/jinnian0703/JlenVideo/releases"
-                                openExternalUrl(context, targetUrl)
-                            }
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            AccountGuestModeHeader(
+                                title = "关于与日志",
+                                description = "检查更新、查看发布页或处理本机崩溃日志",
+                                onBack = { onAuthModeChange(AccountAuthMode.Login) }
+                            )
+                            AboutPane(
+                                currentVersion = state.updateInfo?.currentVersion?.ifBlank { AppRuntimeInfo.versionName }
+                                    ?: AppRuntimeInfo.versionName,
+                                latestVersion = state.updateInfo?.latestVersion.orEmpty(),
+                                notes = state.updateInfo?.notes.orEmpty(),
+                                hasUpdate = state.updateInfo?.hasUpdate == true,
+                                isUpdateLoading = state.isUpdateLoading,
+                                crashLogText = state.latestCrashLog,
+                                hasCrashLog = state.hasCrashLog,
+                                onCheckUpdate = onCheckUpdate,
+                                onRefreshCrashLog = onRefreshCrashLog,
+                                onClearCrashLog = onClearCrashLog,
+                                onOpenRelease = {
+                                    val targetUrl = state.updateInfo?.releasePageUrl
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: "https://github.com/jinnian0703/JlenVideo/releases"
+                                    openExternalUrl(context, targetUrl)
+                                },
+                                onDownloadUpdate = {
+                                    val targetUrl = state.updateInfo?.downloadUrl
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: state.updateInfo?.releasePageUrl
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: "https://github.com/jinnian0703/JlenVideo/releases"
+                                    openExternalUrl(context, targetUrl)
+                                }
+                            )
+                        }
                     }
 
                     AccountAuthMode.Login -> {
@@ -642,6 +638,12 @@ internal fun LegacyAccountScreen(
                                 ) {
                                     Text(if (state.isLoading) "正在登录..." else "立即登录", fontWeight = FontWeight.Bold)
                                 }
+
+                                AccountGuestAuxiliaryActions(
+                                    onRegister = { onAuthModeChange(AccountAuthMode.Register) },
+                                    onFindPassword = { onAuthModeChange(AccountAuthMode.FindPassword) },
+                                    onAbout = { onAuthModeChange(AccountAuthMode.About) }
+                                )
                             }
                         }
                     }
@@ -1404,6 +1406,85 @@ private fun AccountGuestBenefitChip(text: String) {
             fontWeight = FontWeight.SemiBold,
             color = UiPalette.TextPrimary
         )
+    }
+}
+
+@Composable
+private fun AccountGuestModeHeader(
+    title: String,
+    description: String,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        TextButton(
+            onClick = onBack,
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = UiPalette.Accent)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("返回登录", fontWeight = FontWeight.Bold)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = UiPalette.Ink
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = UiPalette.TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountGuestAuxiliaryActions(
+    onRegister: () -> Unit,
+    onFindPassword: () -> Unit,
+    onAbout: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedButton(
+                onClick = onRegister,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, UiPalette.BorderSoft)
+            ) {
+                Text("注册账号", maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = onFindPassword,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, UiPalette.BorderSoft)
+            ) {
+                Text("找回密码", maxLines = 1)
+            }
+        }
+        TextButton(
+            onClick = onAbout,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.textButtonColors(contentColor = UiPalette.TextSecondary)
+        ) {
+            Text("关于与日志", fontWeight = FontWeight.Bold)
+        }
     }
 }
 
