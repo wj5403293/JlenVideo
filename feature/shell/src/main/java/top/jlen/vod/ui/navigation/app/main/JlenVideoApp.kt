@@ -1,6 +1,7 @@
 package top.jlen.vod.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +24,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -46,6 +49,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -82,6 +88,13 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 import top.jlen.vod.data.AppNotice
 import top.jlen.vod.data.AppUpdateInfo
+
+private const val ONBOARDING_PREFS = "jlen_video_onboarding"
+private const val KEY_ACCEPTED_USER_AGREEMENT = "accepted_user_agreement"
+private const val KEY_COMPLETED_FIRST_LOGIN_PROMPT = "completed_first_login_prompt"
+
+private const val ROUTE_ONBOARDING_AGREEMENT = "onboarding/agreement"
+private const val ROUTE_ONBOARDING_LOGIN = "onboarding/login"
 
 private val topLevelRoutes = setOf("home", "categories", "follow", "search", "account")
 
@@ -144,6 +157,42 @@ fun JlenVideoApp() {
     val viewModel: AppViewModel = viewModel()
     val navController = rememberNavController()
     val context = LocalContext.current
+    val onboardingPrefs = remember(context) {
+        context.getSharedPreferences(ONBOARDING_PREFS, Context.MODE_PRIVATE)
+    }
+    var hasAcceptedUserAgreement by rememberSaveable {
+        mutableStateOf(onboardingPrefs.getBoolean(KEY_ACCEPTED_USER_AGREEMENT, false))
+    }
+    var hasCompletedFirstLoginPrompt by rememberSaveable {
+        mutableStateOf(onboardingPrefs.getBoolean(KEY_COMPLETED_FIRST_LOGIN_PROMPT, false))
+    }
+    val startDestination = remember(hasAcceptedUserAgreement, hasCompletedFirstLoginPrompt) {
+        when {
+            !hasAcceptedUserAgreement -> ROUTE_ONBOARDING_AGREEMENT
+            !hasCompletedFirstLoginPrompt -> ROUTE_ONBOARDING_LOGIN
+            else -> "home"
+        }
+    }
+    val acceptAgreement: () -> Unit = {
+        onboardingPrefs.edit().putBoolean(KEY_ACCEPTED_USER_AGREEMENT, true).apply()
+        hasAcceptedUserAgreement = true
+        navController.navigate(ROUTE_ONBOARDING_LOGIN) {
+            popUpTo(ROUTE_ONBOARDING_AGREEMENT) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+    val completeFirstLoginPrompt: (String) -> Unit = { route ->
+        onboardingPrefs.edit().putBoolean(KEY_COMPLETED_FIRST_LOGIN_PROMPT, true).apply()
+        hasCompletedFirstLoginPrompt = true
+        navController.navigate(route) {
+            popUpTo(ROUTE_ONBOARDING_LOGIN) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
     val portraitPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             viewModel.uploadPortrait(uri)
@@ -168,8 +217,10 @@ fun JlenVideoApp() {
     val rootContentInsets = WindowInsets(0, 0, 0, 0)
     val updateInfo = viewModel.accountState.updateInfo
     val noticeDialog = viewModel.noticeState.dialogNotice
+    val canShowGlobalDialogs = currentTopLevelRoute != null
     var dismissedUpdateVersion by rememberSaveable { mutableStateOf("") }
-    val shouldShowUpdateDialog = updateInfo?.hasUpdate == true &&
+    val shouldShowUpdateDialog = canShowGlobalDialogs &&
+        updateInfo?.hasUpdate == true &&
         updateInfo.latestVersion.isNotBlank() &&
         dismissedUpdateVersion != updateInfo.latestVersion &&
         noticeDialog == null
@@ -224,7 +275,7 @@ fun JlenVideoApp() {
     MaterialTheme(colorScheme = appColors) {
         Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
             Box(modifier = Modifier.fillMaxSize().background(appBackground)) {
-                if (noticeDialog != null) {
+                if (canShowGlobalDialogs && noticeDialog != null) {
                     AnnouncementPromptDialog(
                         notice = noticeDialog,
                         onDismiss = viewModel::dismissNoticeDialog,
@@ -261,7 +312,7 @@ fun JlenVideoApp() {
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "home",
+                        startDestination = startDestination,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding),
@@ -270,6 +321,33 @@ fun JlenVideoApp() {
                         popEnterTransition = { EnterTransition.None },
                         popExitTransition = { ExitTransition.None }
                     ) {
+                        composable(ROUTE_ONBOARDING_AGREEMENT) {
+                            UserAgreementOnboardingScreen(
+                                onAccept = acceptAgreement
+                            )
+                        }
+                        composable(ROUTE_ONBOARDING_LOGIN) {
+                            LaunchedEffect(viewModel.accountState.session.isLoggedIn) {
+                                if (viewModel.accountState.session.isLoggedIn) {
+                                    completeFirstLoginPrompt("home")
+                                }
+                            }
+                            FirstLoginOnboardingScreen(
+                                state = viewModel.accountState,
+                                onUserNameChange = viewModel::updateLoginUserName,
+                                onPasswordChange = viewModel::updateLoginPassword,
+                                onLogin = viewModel::login,
+                                onSkip = { completeFirstLoginPrompt("home") },
+                                onRegister = {
+                                    viewModel.setAccountAuthMode(AccountAuthMode.Register)
+                                    completeFirstLoginPrompt("account")
+                                },
+                                onFindPassword = {
+                                    viewModel.setAccountAuthMode(AccountAuthMode.FindPassword)
+                                    completeFirstLoginPrompt("account")
+                                }
+                            )
+                        }
                         composable("home") {
                             HomeScreen(
                                 state = viewModel.homeState,
@@ -544,6 +622,255 @@ private fun normalizeHeartbeatRoute(route: String?): String = when {
     route.startsWith("detail/") || route == "detail/{vodId}" -> "detail"
     route.startsWith("announcement/") || route == "announcement/{noticeId}" -> "announcement_detail"
     else -> route
+}
+
+@Composable
+private fun UserAgreementOnboardingScreen(
+    onAccept: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "用户协议与隐私说明",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = UiPalette.Ink
+            )
+            Text(
+                text = "请先阅读并同意以下内容，再继续使用 JlenVideo。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = UiPalette.TextSecondary
+            )
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
+            shape = RoundedCornerShape(28.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.Border)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                AgreementSection(
+                    title = "应用用途",
+                    body = "JlenVideo 是视频浏览与播放客户端，用于展示站点提供的影视信息、搜索结果、播放记录和追剧内容。"
+                )
+                AgreementSection(
+                    title = "内容与播放",
+                    body = "应用本身不生产影视内容，列表、详情和播放地址来自当前配置站点。请在合法合规的前提下使用相关内容。"
+                )
+                AgreementSection(
+                    title = "账号与数据",
+                    body = "登录后会使用站点账号能力同步资料、会员积分、追剧和播放记录；本地会保存必要的引导状态、搜索历史、播放进度和问题日志。"
+                )
+                AgreementSection(
+                    title = "隐私与日志",
+                    body = "崩溃日志仅用于排查运行问题，通常保存在本机。请不要在问题日志中主动填写敏感账号、密码或验证码。"
+                )
+                AgreementSection(
+                    title = "合规使用",
+                    body = "继续使用即表示你承诺遵守所在地法律法规、站点规则和内容版权要求，并自行承担因不当使用产生的责任。"
+                )
+            }
+        }
+
+        Button(
+            onClick = onAccept,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 54.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = UiPalette.Accent,
+                contentColor = UiPalette.AccentText
+            )
+        ) {
+            Text("同意并继续", fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+@Composable
+private fun AgreementSection(
+    title: String,
+    body: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = UiPalette.Ink
+        )
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = UiPalette.TextPrimary
+        )
+    }
+}
+
+@Composable
+private fun FirstLoginOnboardingScreen(
+    state: AccountUiState,
+    onUserNameChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onLogin: () -> Unit,
+    onSkip: () -> Unit,
+    onRegister: () -> Unit,
+    onFindPassword: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "登录账号",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = UiPalette.Ink
+            )
+            Text(
+                text = "登录后可同步追剧、播放记录和会员积分，也可以先跳过进入首页。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = UiPalette.TextSecondary
+            )
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
+            shape = RoundedCornerShape(28.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.Border)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 22.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                state.error?.takeIf { it.isNotBlank() }?.let { error ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = UiPalette.DangerSurface),
+                        shape = RoundedCornerShape(18.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.DangerBorder)
+                    ) {
+                        Text(
+                            text = error,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = UiPalette.DangerText
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = state.userName,
+                    onValueChange = onUserNameChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    singleLine = true,
+                    label = { Text("用户名") },
+                    placeholder = { Text("请输入站内用户名") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = UiPalette.Accent,
+                        unfocusedBorderColor = UiPalette.BorderSoft,
+                        focusedTextColor = UiPalette.Ink,
+                        unfocusedTextColor = UiPalette.Ink,
+                        cursorColor = UiPalette.Accent,
+                        focusedContainerColor = UiPalette.SurfaceSoft,
+                        unfocusedContainerColor = UiPalette.SurfaceSoft
+                    )
+                )
+                OutlinedTextField(
+                    value = state.password,
+                    onValueChange = onPasswordChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    singleLine = true,
+                    label = { Text("密码") },
+                    placeholder = { Text("请输入密码") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = UiPalette.Accent,
+                        unfocusedBorderColor = UiPalette.BorderSoft,
+                        focusedTextColor = UiPalette.Ink,
+                        unfocusedTextColor = UiPalette.Ink,
+                        cursorColor = UiPalette.Accent,
+                        focusedContainerColor = UiPalette.SurfaceSoft,
+                        unfocusedContainerColor = UiPalette.SurfaceSoft
+                    )
+                )
+
+                Button(
+                    onClick = onLogin,
+                    enabled = !state.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = UiPalette.Accent,
+                        contentColor = UiPalette.AccentText
+                    )
+                ) {
+                    Text(if (state.isLoading) "正在登录..." else "立即登录", fontWeight = FontWeight.ExtraBold)
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onRegister,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+                    ) {
+                        Text("注册账号", maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = onFindPassword,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, UiPalette.BorderSoft)
+                    ) {
+                        Text("找回密码", maxLines = 1)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        TextButton(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "跳过，先逛逛",
+                fontWeight = FontWeight.Bold,
+                color = UiPalette.TextSecondary
+            )
+        }
+    }
 }
 
 @Suppress("unused")
