@@ -52,8 +52,10 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.NewReleases
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -148,6 +150,7 @@ internal fun LegacyAccountScreen(
     onRefreshSection: () -> Unit,
     onChangePortrait: () -> Unit,
     onOpenHistoryRecord: (top.jlen.vod.data.UserCenterItem) -> Unit,
+    onOpenFollow: () -> Unit,
     onLoadMoreHistory: () -> Unit,
     onDeleteHistory: (String) -> Unit,
     onClearHistory: () -> Unit,
@@ -180,12 +183,18 @@ internal fun LegacyAccountScreen(
         AccountNoticeTone.Info
     }
     val visibleSections = remember {
-        AccountSection.entries.filterNot { it == AccountSection.Favorites }
+        listOf(
+            AccountSection.Overview,
+            AccountSection.Profile,
+            AccountSection.History,
+            AccountSection.Member,
+            AccountSection.About
+        )
     }
 
     LaunchedEffect(showLoggedInContent, state.selectedSection) {
         if (showLoggedInContent && state.selectedSection == AccountSection.Favorites) {
-            onSelectSection(AccountSection.Profile)
+            onSelectSection(AccountSection.Overview)
         }
     }
 
@@ -329,6 +338,7 @@ internal fun LegacyAccountScreen(
                     visibleSections.forEach { section ->
                         AccountUnderlineTab(
                             text = when (section) {
+                                AccountSection.Overview -> "总览"
                                 AccountSection.Profile -> "资料"
                                 AccountSection.History -> "记录"
                                 AccountSection.Member -> "会员"
@@ -356,6 +366,25 @@ internal fun LegacyAccountScreen(
 
             item {
                 when (state.selectedSection) {
+                    AccountSection.Overview -> AccountOverviewPane(
+                        state = state,
+                        isActionLoading = state.isActionLoading,
+                        onEditProfile = {
+                            onSelectSection(AccountSection.Profile)
+                            onProfileTabChange(true)
+                        },
+                        onBindEmail = {
+                            onSelectSection(AccountSection.Profile)
+                            onProfileTabChange(true)
+                        },
+                        onSignIn = onSignInMembership,
+                        onOpenPointLogs = onOpenPointLogs,
+                        onOpenFollow = onOpenFollow,
+                        onOpenLogs = {
+                            onSelectSection(AccountSection.About)
+                            onRefreshCrashLog()
+                        }
+                    )
                     AccountSection.Profile -> AccountProfilePaneV2(
                         isLoading = state.isContentLoading,
                         fields = state.profileFields,
@@ -1298,6 +1327,332 @@ private fun AccountUnderlineTab(
                 .background(if (selected) UiPalette.Accent else Color.Transparent)
         )
     }
+}
+
+@Composable
+private fun AccountOverviewPane(
+    state: AccountUiState,
+    isActionLoading: Boolean,
+    onEditProfile: () -> Unit,
+    onBindEmail: () -> Unit,
+    onSignIn: () -> Unit,
+    onOpenPointLogs: () -> Unit,
+    onOpenFollow: () -> Unit,
+    onOpenLogs: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
+            shape = RoundedCornerShape(26.dp),
+            border = BorderStroke(1.dp, UiPalette.Border)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "账号总览",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = UiPalette.Ink
+                        )
+                        Text(
+                            text = state.session.groupName.ifBlank { "普通用户" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = UiPalette.TextSecondary
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(UiPalette.AccentGlow)
+                            .border(1.dp, UiPalette.BorderSoft, RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = if (state.membershipSignInInfo.signedToday) "今日已签" else "待签到",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (state.membershipSignInInfo.signedToday) UiPalette.Accent else UiPalette.DangerText
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AccountOverviewMetric(
+                        label = "用户 ID",
+                        value = state.session.userId.ifBlank { "--" },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AccountOverviewMetric(
+                        label = "剩余积分",
+                        value = state.membershipInfo.points.ifBlank { "--" },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AccountOverviewMetric(
+                        label = "到期时间",
+                        value = state.membershipInfo.expiry.ifBlank { "--" },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AccountOverviewMetric(
+                        label = "播放记录",
+                        value = "${state.historyItems.size} 条",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
+            shape = RoundedCornerShape(26.dp),
+            border = BorderStroke(1.dp, UiPalette.Border)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "快捷处理",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = UiPalette.Ink
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AccountOverviewActionButton(
+                        title = "资料编辑",
+                        subtitle = "完善资料",
+                        icon = Icons.Rounded.Person,
+                        onClick = onEditProfile,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AccountOverviewActionButton(
+                        title = "邮箱绑定",
+                        subtitle = state.profileEditor.email.ifBlank { "安全邮箱" },
+                        icon = Icons.Rounded.CheckCircle,
+                        onClick = onBindEmail,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AccountOverviewActionButton(
+                        title = if (state.membershipSignInInfo.signedToday) "今日已签" else "会员签到",
+                        subtitle = signInRewardHint(state.membershipSignInInfo),
+                        icon = Icons.Rounded.Star,
+                        enabled = !state.membershipSignInInfo.signedToday && !isActionLoading,
+                        onClick = onSignIn,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AccountOverviewActionButton(
+                        title = "积分日志",
+                        subtitle = "查看明细",
+                        icon = Icons.Rounded.History,
+                        onClick = onOpenPointLogs,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = UiPalette.Surface),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, UiPalette.BorderSoft)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AccountOverviewLinkRow(
+                    title = "去追剧",
+                    description = "查看已加入追剧的更新和续播",
+                    icon = Icons.Rounded.GridView,
+                    onClick = onOpenFollow
+                )
+                AccountOverviewLinkRow(
+                    title = "反馈与日志",
+                    description = if (state.hasCrashLog) "有崩溃日志可查看" else "检查更新、查看运行日志",
+                    icon = Icons.Rounded.Info,
+                    onClick = onOpenLogs
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountOverviewMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(UiPalette.SurfaceSoft)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = UiPalette.TextMuted
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = UiPalette.Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountOverviewActionButton(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(82.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = UiPalette.SurfaceSoft,
+            contentColor = UiPalette.Ink,
+            disabledContainerColor = UiPalette.SurfaceStrong,
+            disabledContentColor = UiPalette.TextMuted
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(UiPalette.Accent.copy(alpha = if (enabled) 0.12f else 0.06f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (enabled) UiPalette.Accent else UiPalette.TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (enabled) UiPalette.TextSecondary else UiPalette.TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountOverviewLinkRow(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .background(UiPalette.SurfaceSoft.copy(alpha = 0.72f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(UiPalette.Accent.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = UiPalette.Accent,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = UiPalette.Ink
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = UiPalette.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+            contentDescription = null,
+            tint = UiPalette.TextMuted,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+private fun signInRewardHint(signInInfo: MembershipSignInInfo): String = when {
+    signInInfo.signedToday -> "明天再来"
+    signInInfo.rewardPoints.isNotBlank() -> "+${signInInfo.rewardPoints} 积分"
+    signInInfo.rewardMinPoints.isNotBlank() && signInInfo.rewardMaxPoints.isNotBlank() ->
+        "${signInInfo.rewardMinPoints}-${signInInfo.rewardMaxPoints} 积分"
+    signInInfo.rewardMinPoints.isNotBlank() -> "${signInInfo.rewardMinPoints} 积分起"
+    else -> "领取积分"
 }
 
 private enum class AccountProfileTab {

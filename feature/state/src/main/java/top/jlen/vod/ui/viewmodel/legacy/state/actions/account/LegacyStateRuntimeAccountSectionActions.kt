@@ -66,6 +66,18 @@ internal fun LegacyStateRuntimeViewModelCore.legacySelectAccountSection(
     updateAccountState(selectAccountSectionState(currentAccountState(), section))
     if (!currentAccountState().session.isLoggedIn) return
     when (section) {
+        AccountSection.Overview -> {
+            if (forceRefresh || currentAccountState().profileFields.isEmpty()) {
+                runtimeLoadAccountProfile()
+            }
+            if (forceRefresh || currentAccountState().membershipPlans.isEmpty()) {
+                runtimeLoadMembership()
+            }
+            if (forceRefresh || currentAccountState().historyItems.isEmpty()) {
+                runtimeLoadHistoryRecords()
+            }
+        }
+
         AccountSection.Profile -> {
             if (forceRefresh || currentAccountState().profileFields.isEmpty()) {
                 runtimeLoadAccountProfile()

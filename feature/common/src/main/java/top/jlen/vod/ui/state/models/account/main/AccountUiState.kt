@@ -12,6 +12,7 @@ import top.jlen.vod.data.UserCenterItem
 import top.jlen.vod.data.UserProfileEditor
 
 enum class AccountSection {
+    Overview,
     Profile,
     Favorites,
     History,
@@ -49,7 +50,7 @@ data class AccountUiState(
     val findPasswordCaptcha: ByteArray? = null,
     val findPasswordEditor: FindPasswordEditor = FindPasswordEditor(),
     val session: AuthSession = AuthSession(),
-    val selectedSection: AccountSection = AccountSection.Profile,
+    val selectedSection: AccountSection = AccountSection.Overview,
     val isProfileEditTab: Boolean = false,
     val profileFields: List<Pair<String, String>> = emptyList(),
     val profileEditor: UserProfileEditor = UserProfileEditor(),

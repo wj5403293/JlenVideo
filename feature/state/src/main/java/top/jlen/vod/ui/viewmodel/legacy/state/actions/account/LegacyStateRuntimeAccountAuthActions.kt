@@ -138,7 +138,7 @@ internal fun LegacyStateRuntimeViewModelCore.legacyLogin() {
         }.onSuccess { session ->
             updateAccountState(loggedInAccountState(currentAccountState(), session))
             updateFollowState(FollowUiState(isLoggedIn = true))
-            selectAccountSection(AccountSection.Profile, forceRefresh = true)
+            selectAccountSection(AccountSection.Overview, forceRefresh = true)
         }.onFailure { error ->
             updateAccountState(
                 accountStateWithLoginError(

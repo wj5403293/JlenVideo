@@ -379,6 +379,7 @@ fun JlenVideoApp() {
                                     viewModel.resumeHistoryRecord(item)
                                     navController.navigate("player")
                                 },
+                                onOpenFollow = { navigateToTopLevel("follow") },
                                 onLoadMoreHistory = viewModel::loadMoreHistory,
                                 onDeleteHistory = viewModel::deleteHistory,
                                 onClearHistory = viewModel::clearHistory,

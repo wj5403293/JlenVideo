@@ -133,7 +133,7 @@ internal fun LegacyStateRuntimeViewModelCore.legacySignInMembership() {
                 else -> {
                     runtimeRunAccountAction(
                         block = { signInMembership() },
-                        onSuccess = { selectAccountSection(AccountSection.Member, forceRefresh = true) }
+                        onSuccess = { refreshAfterMembershipSignIn() }
                     )
                 }
             }
@@ -161,8 +161,17 @@ internal fun LegacyStateRuntimeViewModelCore.legacySignInMembership() {
     }
     runtimeRunAccountAction(
         block = { signInMembership() },
-        onSuccess = { selectAccountSection(AccountSection.Member, forceRefresh = true) }
+        onSuccess = { refreshAfterMembershipSignIn() }
     )
+}
+
+private fun LegacyStateRuntimeViewModelCore.refreshAfterMembershipSignIn() {
+    val targetSection = if (currentAccountState().selectedSection == AccountSection.Overview) {
+        AccountSection.Overview
+    } else {
+        AccountSection.Member
+    }
+    selectAccountSection(targetSection, forceRefresh = true)
 }
 
 internal fun LegacyStateRuntimeViewModelCore.legacySaveProfile() {
