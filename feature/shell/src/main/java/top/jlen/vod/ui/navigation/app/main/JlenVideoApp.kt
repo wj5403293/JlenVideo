@@ -166,7 +166,7 @@ fun JlenVideoApp() {
     var hasCompletedFirstLoginPrompt by rememberSaveable {
         mutableStateOf(onboardingPrefs.getBoolean(KEY_COMPLETED_FIRST_LOGIN_PROMPT, false))
     }
-    val startDestination = remember(hasAcceptedUserAgreement, hasCompletedFirstLoginPrompt) {
+    val startDestination = rememberSaveable {
         when {
             !hasAcceptedUserAgreement -> ROUTE_ONBOARDING_AGREEMENT
             !hasCompletedFirstLoginPrompt -> ROUTE_ONBOARDING_LOGIN
