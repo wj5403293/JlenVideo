@@ -79,16 +79,6 @@ JlenVideo-版本号-debug.apk
 - Android Studio 或完整 Android SDK
 - Windows PowerShell
 
-### 第一次构建
-
-在项目根目录执行：
-
-```powershell
-.\gradlew.bat :app:assembleDebug
-```
-
-如果构建通过，说明当前模块依赖与本地环境都正常。
-
 ### 第一次建议看的文件
 
 ```text
@@ -109,16 +99,9 @@ feature/player/.../NativeVideoPlayer.kt
 
 ---
 
-## 5. 构建方式
+## 5. APK 输出
 
-### 常用命令
-
-```powershell
-.\gradlew.bat :app:compileDebugKotlin
-.\gradlew.bat :app:assembleDebug
-```
-
-### APK 输出
+当前 debug APK：
 
 - [JlenVideo-2.1.1.5-debug.apk](/F:/codex/1/app/build/outputs/apk/debug/JlenVideo-2.1.1.5-debug.apk)
 
