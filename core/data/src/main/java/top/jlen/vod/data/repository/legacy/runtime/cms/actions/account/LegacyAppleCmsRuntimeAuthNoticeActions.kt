@@ -31,6 +31,8 @@ internal fun LegacyAppleCmsRuntimeRepositoryCore.legacyReportHeartbeat(
                 .add("app_version", AppRuntimeInfo.versionName)
                 .add("android_release", Build.VERSION.RELEASE.orEmpty())
                 .add("android_sdk", Build.VERSION.SDK_INT.toString())
+                .add("device_manufacturer", Build.MANUFACTURER.orEmpty().trim())
+                .add("device_model", Build.MODEL.orEmpty().trim())
                 .add("route", route.trim().ifBlank { "home" })
                 .apply {
                     userId.trim()
